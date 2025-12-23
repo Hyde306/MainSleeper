@@ -1,155 +1,195 @@
 #include "DxLib.h"
-
-struct Cell
-{
-	bool mine;   // 地雷があるか
-	bool open;   // 開かれているか
-	int around;  // 周囲の地雷数
-};
+#include <cstdlib>
+#include <ctime>
 
 const int BOARD_W = 15;
 const int BOARD_H = 12;
+const int CELL_SIZE = 32;
+const int OFFSET_Y = 48;
+const int MINE_COUNT = 30;
 
-Cell board[BOARD_H][BOARD_W];
+// セル構造体
+struct Cell
+{
+    bool mine;   // 地雷
+    bool open;   // 開かれているか
+    int around;  // 周囲の地雷数
+};
 
-// 描画クラス
+Cell mineMap[BOARD_H][BOARD_W];
+bool drawMap[BOARD_H][BOARD_W];
+
 class Renderer
 {
 public:
-	bool Load();
-	void DrawCell(int x, int y, const Cell& cell);
-	void DrawBack();
+    bool Load();
+    void DrawBack();
+    void DrawCell(int x, int y);
 
 private:
-	int gh_back;
-	int gh_turf;
-	int gh_mine;
-	int gh_empty;
-	int gh_number[8]; // 0～7
+    int gh_back;
+    int gh_turf;
+    int gh_mine;
+    int gh_empty;
+    int gh_number[8]; // 0～7
 };
 
-// 画像読み込み
 bool Renderer::Load()
 {
-	gh_back = LoadGraph("image\\back.png");
-	gh_turf = LoadGraph("image\\turf.png");
-	gh_mine = LoadGraph("image\\mine.png");
-	gh_empty = LoadGraph("image\\empty.png");
+    gh_back = LoadGraph("image\\back.png");
+    gh_turf = LoadGraph("image\\turf.png");
+    gh_mine = LoadGraph("image\\mine.png");
+    gh_empty = LoadGraph("image\\empty.png");
 
-	gh_number[1] = LoadGraph("image\\one.png");
-	gh_number[2] = LoadGraph("image\\two.png");
-	gh_number[3] = LoadGraph("image\\three.png");
-	gh_number[4] = LoadGraph("image\\four.png");
-	gh_number[5] = LoadGraph("image\\five.png");
-	gh_number[6] = LoadGraph("image\\six.png");
-	gh_number[7] = LoadGraph("image\\seven.png");
+    gh_number[1] = LoadGraph("image\\one.png");
+    gh_number[2] = LoadGraph("image\\two.png");
+    gh_number[3] = LoadGraph("image\\three.png");
+    gh_number[4] = LoadGraph("image\\four.png");
+    gh_number[5] = LoadGraph("image\\five.png");
+    gh_number[6] = LoadGraph("image\\six.png");
+    gh_number[7] = LoadGraph("image\\seven.png");
 
-	if (gh_turf == -1 || gh_mine == -1 || gh_empty == -1)
-		return false;
+    if (gh_turf == -1 || gh_mine == -1 || gh_empty == -1) return false;
+    for (int i = 1; i <= 7; i++) if (gh_number[i] == -1) return false;
+    return true;
+}
+void Renderer::DrawBack() { DrawGraph(0, 0, gh_back, true); }
 
-	for (int i = 1; i <= 7; i++)
-	{
-		if (gh_number[i] == -1)
-			return false;
-	}
-	return true;
+void Renderer::DrawCell(int x, int y)
+{
+    int drawX = x * CELL_SIZE;
+    int drawY = y * CELL_SIZE + OFFSET_Y;
+
+    if (!drawMap[y][x])
+    {
+        DrawGraph(drawX, drawY, gh_turf, true);
+        return;
+    }
+
+    if (mineMap[y][x].mine)
+        DrawGraph(drawX, drawY, gh_mine, true);
+    else if (mineMap[y][x].around == 0)
+        DrawGraph(drawX, drawY, gh_empty, true);
+    else
+        DrawGraph(drawX, drawY, gh_number[mineMap[y][x].around], true);
 }
 
-void Renderer::DrawBack()
+// 周囲の地雷数を計算
+void CalcAround()
 {
-	DrawGraph(0, 0, gh_back, true);
+    for (int y = 0; y < BOARD_H; y++)
+    {
+        for (int x = 0; x < BOARD_W; x++)
+        {
+            if (mineMap[y][x].mine) continue;
+            int count = 0;
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int nx = x + dx;
+                    int ny = y + dy;
+                    if (nx >= 0 && nx < BOARD_W && ny >= 0 && ny < BOARD_H)
+                        if (mineMap[ny][nx].mine) count++;
+                }
+            mineMap[y][x].around = count;
+        }
+    }
 }
 
-void Renderer::DrawCell(int x, int y, const Cell& cell)
+void PlaceMinesSafe(int safeX, int safeY)
 {
-	const int CELL_SIZE = 32;
-	const int OFFSET_Y = 48;
+    srand((unsigned int)time(nullptr));
+    int placed = 0;
+    while (placed < MINE_COUNT)
+    {
+        int x = rand() % BOARD_W;
+        int y = rand() % BOARD_H;
 
-	int drawX = x * CELL_SIZE;
-	int drawY = y * CELL_SIZE + OFFSET_Y ;
+        if ((x >= safeX - 1 && x <= safeX + 1) && (y >= safeY - 1 && y <= safeY + 1))
+            continue;
 
-	if (!cell.open)
-	{
-		DrawGraph(drawX, drawY, gh_turf, true);
-		return;
-	}
-
-	if (cell.mine)
-	{
-		DrawGraph(drawX, drawY, gh_mine, true);
-		return;
-	}
-
-	if (cell.around == 0)
-	{
-		DrawGraph(drawX, drawY, gh_empty, true);
-		return;
-	}
-
-	DrawGraph(drawX, drawY, gh_number[cell.around], true);
+        if (!mineMap[y][x].mine)
+        {
+            mineMap[y][x].mine = true;
+            placed++;
+        }
+    }
 }
 
-int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
-	_In_ LPSTR lpCmdLine, _In_ int nShowCmd)
+// セルを開く
+void OpenCell(int x, int y)
 {
-	SetOutApplicationLogValidFlag(false);//ログ出力オフ
-	ChangeWindowMode(TRUE); //ウィンドウモード切り替え
-	SetGraphMode(480,434, 32); //ウィンドウサイズ
+    if (x < 0 || x >= BOARD_W || y < 0 || y >= BOARD_H) return;
+    if (drawMap[y][x]) return;
 
-	if (DxLib_Init() == -1) { //DXライブラリ初期化処理
-		return -1;			  //エラーが起きたら直ちに終了
-	}
+    drawMap[y][x] = true;
 
-	SetDrawScreen(DX_SCREEN_BACK); //描画先を裏画面に変更
-	SetWindowText("speed"); //ウィンドウの名前
+    if (mineMap[y][x].around == 0 && !mineMap[y][x].mine)
+    {
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+                if (dx != 0 || dy != 0)
+                    OpenCell(x + dx, y + dy);
+    }
+}
 
-	Renderer renderer;
-	if (!renderer.Load())
-	{
-		DxLib_End();
-		return -1;
-	}
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+{
+    SetOutApplicationLogValidFlag(false);
+    ChangeWindowMode(TRUE);
+    SetGraphMode(480, 434, 32);
 
-	for (int y = 0; y < BOARD_H; y++)
-	{
-		for (int x = 0; x < BOARD_W; x++)
-		{
-			board[y][x].mine = false;
-			board[y][x].open = false;
-			board[y][x].around = 0;
-		}
-	}
+    if (DxLib_Init() == -1) return -1;
+    SetDrawScreen(DX_SCREEN_BACK);
+    SetWindowText("Minesweeper");
 
-	int mouseX, mouseY;//カーソル位置保存用
+    Renderer renderer;
+    if (!renderer.Load()) { DxLib_End(); return -1; }
 
-	while (1) 
-	{
-		//裏画面のデータを全て削除
-		ClearDrawScreen();
+    // 初期化
+    for (int y = 0; y < BOARD_H; y++)
+        for (int x = 0; x < BOARD_W; x++)
+        {
+            mineMap[y][x] = { false, false, 0 };
+            drawMap[y][x] = false;
+        }
 
-		renderer.DrawBack();
+    int mouseX, mouseY;
+    bool firstClick = true;
 
-		for (int y = 0; y < BOARD_H; y++)
-		{
-			for (int x = 0; x < BOARD_W; x++)
-			{
-				renderer.DrawCell(x, y, board[y][x]);
-			}
-		}
+    while (1)
+    {
+        ClearDrawScreen();
+        renderer.DrawBack();
 
-		//マウスカーソルの位置を取得
-		GetMousePoint(&mouseX, &mouseY);
+        for (int y = 0; y < BOARD_H; y++)
+            for (int x = 0; x < BOARD_W; x++)
+                renderer.DrawCell(x, y);
 
-		//--------------------------------------------------------------------
+        GetMousePoint(&mouseX, &mouseY);
 
-		ScreenFlip(); //裏画面データを表画面へ反映
+        // 左クリック
+        if (GetMouseInput() & MOUSE_INPUT_LEFT)
+        {
+            int x = mouseX / CELL_SIZE;
+            int y = (mouseY - OFFSET_Y) / CELL_SIZE;
+            if (x >= 0 && x < BOARD_W && y >= 0 && y < BOARD_H)
+            {
+                if (firstClick)
+                {
+                    PlaceMinesSafe(x, y);
+                    CalcAround();
+                    firstClick = false;
+                }
+                OpenCell(x, y);
+            }
+        }
 
-		//毎ループ呼び出す。エラーになった場合breakする
-		if (ProcessMessage() == -1)break;
-		//エスケープキーを押したり、エラーになった場合、breakする
-		if (CheckHitKey(KEY_INPUT_ESCAPE))break;
-	}
-	WaitKey();	 //キー入力待ち
-	DxLib_End(); //DXライブラリ使用の終了処理
-	return 0;
+        ScreenFlip();
+        if (ProcessMessage() == -1) break;
+        if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
+    }
+
+    DxLib_End();
+    return 0;
 }

@@ -1,12 +1,25 @@
 #include "DxLib.h"
 
 const int MARGIN = 44;
+const int VAR = 12;//縦
+const int HOR = 15;//横
+const int MINE_COUNT = 30;
+
+// 描画マップ
+class Map
+{
+public:
+	void Open_Cell(int row, int col);//最初は芝生マス→地雷マップの情報を得て反映
+	int Cell[HOR][VAR];
+private:
+	
+};
 
 class Image
 {
 public:
 	void Load();
-	void Draw();
+	void Draw(const Map& map);
 	~Image();
 
 private:
@@ -24,6 +37,33 @@ private:
 	int n_seven;
 };
 
+// 地雷マップ
+class Land
+{
+public:
+	void Mine();
+	void Num();
+	void Space();
+	int Mine_map[HOR][VAR];
+private:
+
+};
+
+void Land::Mine()
+{
+	int count = 0;
+	while (count < MINE_COUNT)
+	{
+		int x = rand() % HOR;
+		int y = rand() % VAR;
+	}
+}
+
+void Map::Open_Cell(int row, int col)
+{
+	Cell[row][col] = 0;//Empty
+}
+
 void Image::Load()
 {
 	gh_back = LoadGraph("image/back.png");
@@ -40,25 +80,32 @@ void Image::Load()
 	n_seven = LoadGraph("image/seven.png");
 }
 
-void Image::Draw()
+void Image::Draw(const Map & map)
 {
 	if (gh_back != -1)
 	{
 		DrawGraph(0, 0, gh_back, TRUE);
 	}
 
-	if (gh_turf != -1)
+	if ((gh_turf != -1) && (empty != -1))
 	{
-		for (int i = 0; i < 12; i++)
+		for (int i = 0; i < VAR; i++)
 		{
-			for (int j = 0; j < 15; j++)
+			for (int j = 0; j < HOR; j++)
 			{
-				DrawGraph((j * 32), MARGIN + (i * 32), gh_turf, TRUE);
+				if (map.Cell[j][i] == 0)
+				{
+					DrawGraph((j * 32), MARGIN + (i * 32), empty, TRUE);
+				}
+				else 
+				{
+					DrawGraph((j * 32), MARGIN + (i * 32), gh_turf, TRUE);
+				}
 			}
 		}
 	}
+	
 }
-
 Image::~Image()
 {
 	if (gh_back != -1)
@@ -86,21 +133,37 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 	SetWindowText("speed"); //ウィンドウの名前
 
 	int mouseX, mouseY;//カーソル位置保存用
+	int prevMouseInput = 0;// 前のフレームのときのマウス状態
 
 	Image Box;
-
 	Box.Load();
+	Map map;
 
 	while (1) 
 	{
 		//裏画面のデータを全て削除
 		ClearDrawScreen();
 
-		//処理----------------------------------------------------------------
-		Box.Draw();
-
 		//マウスカーソルの位置を取得
 		GetMousePoint(&mouseX, &mouseY);
+
+		int mouseInput = GetMouseInput();
+
+		if ((mouseInput & MOUSE_INPUT_LEFT) && !(prevMouseInput & MOUSE_INPUT_LEFT))
+		{
+			int row = (mouseY - MARGIN) / 32;
+			int col = mouseX / 32;
+
+			if ((0 <= row && row < 12) && (0 <= col && col < 15))
+			{
+				map.Open_Cell(col, row);
+			}
+		}
+
+		prevMouseInput = mouseInput;
+
+		//処理----------------------------------------------------------------
+		Box.Draw(map);
 
 		//--------------------------------------------------------------------
 

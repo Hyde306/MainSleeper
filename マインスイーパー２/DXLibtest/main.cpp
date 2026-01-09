@@ -1,8 +1,8 @@
 #include "DxLib.h"
 
-const int MARGIN = 44;
-const int VAR = 12;//縦
-const int HOR = 15;//横
+const int MARGIN     = 44;
+const int VAR        = 12;//縦
+const int HOR        = 15;//横
 const int MINE_COUNT = 30;
 
 // 描画マップ
@@ -51,11 +51,54 @@ private:
 
 void Land::Mine()
 {
+	for (int i = 0; i < VAR; i++)
+	{
+		for (int j = 0; j < HOR; j++)
+		{
+			Mine_map[j][i] = 0;
+		}
+	}
+
 	int count = 0;
 	while (count < MINE_COUNT)
 	{
 		int x = rand() % HOR;
 		int y = rand() % VAR;
+
+		if (Mine_map[x][y] == 0)
+		{	
+			Mine_map[x][y]= -1;
+			count++;
+		}
+	}
+}
+
+void Land::Num()
+{
+	for (int i = 0; i < VAR; i++)
+	{
+		for (int j = 0; j < HOR; j++)
+		{
+			if (Mine_map[j][i] == -1)// 地雷判定
+			{
+				for (int hor = -1; hor <= 1; hor++)// 8方向の走査
+				{
+					for (int var = -1; var <= 1; var++)
+					{
+						if ((hor != 0) || (var != 0))// 地雷位置の除外
+						{
+							if (((0 <= j + var) && (j + var < HOR)) && ((0 <= i + hor) && (i + hor < VAR))) // 外に出ないか
+							{
+								if (Mine_map[j + var][i + hor] != -1) // 周囲が地雷ではないとき
+								{
+									Mine_map[j + var][i + hor]++;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -136,8 +179,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 	int prevMouseInput = 0;// 前のフレームのときのマウス状態
 
 	Image Box;
-	Box.Load();
 	Map map;
+	Land land;
+
+	Box.Load();
+	land.Mine();
 
 	while (1) 
 	{
@@ -162,7 +208,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 
 		prevMouseInput = mouseInput;
 
-		//処理----------------------------------------------------------------
 		Box.Draw(map);
 
 		//--------------------------------------------------------------------
@@ -174,10 +219,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 		//エスケープキーを押したり、エラーになった場合、breakする
 		if (CheckHitKey(KEY_INPUT_ESCAPE))break;
 	}
-
-	//画像データ削除
 	
-
 	WaitKey();	 //キー入力待ち
 	DxLib_End(); //DXライブラリ使用の終了処理
 	return 0;

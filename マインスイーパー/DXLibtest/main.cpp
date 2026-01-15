@@ -46,8 +46,6 @@ private:
 	int n_seven;
 };
 
-
-
 void Land::Mine(int SafeCol, int SafeRow)
 {
 	for (int i = 0; i < VAR; i++)
@@ -117,14 +115,12 @@ void Map::Open_Area(int col, int row, Land& land)
 		return;
 	}
 
-	// マスを開く
 	Cell[col][row] = land.Mine_map[col][row];
 
 	// 0 でなければ終了
 	if (Cell[col][row] != 0)
 		return;
 
-	// 8方向
 	for (int x = -1; x <= 1; x++)
 	{
 		for (int y = -1; y <= 1; y++)
@@ -233,8 +229,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 	int prevMouseInput = 0;// 前のフレームのときのマウス状態
 	int Remaining = MINE_COUNT;
 	int StartTimer = 0;
+	int Time = 0;
 
 	bool GameOver = false;
+	bool GameClear = false;
 	bool FirstClick = true;
 
 	Image Box;
@@ -247,7 +245,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 	{
 		for (int j = 0; j < HOR; j++)
 		{
-			map.Cell[j][i] = -2; // 未開封
+			map.Cell[j][i] = -2; // 開いていない
 		}
 	}
 
@@ -272,11 +270,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 				{
 					land.Mine(col, row);
 					land.Num();
-					FirstClick = false;
 
 					// タイマースタート
 					StartTimer = GetNowCount();
 
+					FirstClick = false;
 				}
 				if (map.Cell[col][row] == -2)
 				{
@@ -317,10 +315,16 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 		}
 		prevMouseInput = mouseInput;
 		
+		if ((FirstClick == false) && (GameOver == false))
+		{
+			Time = (GetNowCount() - StartTimer) / 1000;
+		}
+
 		Box.Draw(map);
 
 		SetFontSize(30);
 		DrawFormatString(40, 15, GetColor(255, 255, 255), "%d", Remaining);
+		DrawFormatString(120, 15, GetColor(255, 255, 255), "%d秒", Time);
 
 		ScreenFlip(); //裏画面データを表画面へ反映
 

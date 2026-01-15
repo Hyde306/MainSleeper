@@ -316,13 +316,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 			}
 		}
 		prevMouseInput = mouseInput;
-
+		
 		Box.Draw(map);
 
 		SetFontSize(30);
 		DrawFormatString(40, 15, GetColor(255, 255, 255), "%d", Remaining);
-
-		//--------------------------------------------------------------------
 
 		ScreenFlip(); //裏画面データを表画面へ反映
 

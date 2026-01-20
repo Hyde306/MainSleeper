@@ -211,6 +211,25 @@ void Image::Draw(const Map & map)
 	}
 }
 
+void ResetGame(Map& map, bool& GameOver, bool& GameClear, bool& FirstClick, int& Remaining, int& Time, int& StartTimer)
+{
+	GameOver = false;
+	GameClear = false;
+	FirstClick = true;
+
+	Remaining = MINE_COUNT;
+	Time = 0;
+	StartTimer = 0;
+
+	for (int i = 0; i < VAR; i++)
+	{
+		for (int j = 0; j < HOR; j++)
+		{
+			map.Cell[j][i] = -2; // 全部未開封
+		}
+	}
+}
+
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 	_In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
@@ -227,6 +246,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 
 	int mouseX, mouseY;//カーソル位置保存用
 	int prevMouseInput = 0;// 前のフレームのときのマウス状態
+	int prevKeyR = 0;
 	int Remaining = MINE_COUNT;
 	int StartTimer = 0;
 	int Time = 0;
@@ -241,13 +261,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 
 	Box.Load();
 
-	for (int i = 0; i < VAR; i++)
-	{
-		for (int j = 0; j < HOR; j++)
-		{
-			map.Cell[j][i] = -2; // 開いていない
-		}
-	}
+	ResetGame(map, GameOver, GameClear, FirstClick, Remaining, Time, StartTimer);
 
 	while (1) 
 	{
@@ -262,9 +276,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 		int col = mouseX / 32;
 		int data;
 
-		if ((mouseInput & MOUSE_INPUT_LEFT) && !(prevMouseInput & MOUSE_INPUT_LEFT) && (GameOver == false))
+		if ((mouseInput & MOUSE_INPUT_LEFT) && !(prevMouseInput & MOUSE_INPUT_LEFT) && (GameOver == false) && (GameClear == false))
 		{
-			if ((0 <= row && row < VAR) && (0 <= col && col < HOR)) 
+			if ((0 <= row && row < VAR) && (0 <= col && col < HOR))
 			{
 				if (FirstClick)
 				{
@@ -295,9 +309,33 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 					}
 				}
 			}
+
+			bool clear = true;
+
+			for (int i = 0; i < VAR; i++)
+			{
+				for (int j = 0; j < HOR; j++)
+				{
+					if ((land.Mine_map[j][i] != -1) && (map.Cell[j][i] == -2))
+					{
+						clear = false;	
+						break;
+					}
+				}
+
+				if (clear == false)
+				{
+					break;
+				}
+			}
+			
+			if (clear == true)
+			{
+				GameClear = true;
+			}
 		}
 
-		if ((mouseInput & MOUSE_INPUT_RIGHT) && !(prevMouseInput & MOUSE_INPUT_RIGHT) && (GameOver == false))
+		if ((mouseInput & MOUSE_INPUT_RIGHT) && !(prevMouseInput & MOUSE_INPUT_RIGHT) && (GameOver == false) && (GameClear == false))
 		{
 			if ((0 <= row && row < VAR) && (0 <= col && col < HOR))
 			{
@@ -315,7 +353,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 		}
 		prevMouseInput = mouseInput;
 		
-		if ((FirstClick == false) && (GameOver == false))
+		int keyR = CheckHitKey(KEY_INPUT_R);
+
+		if (keyR && !prevKeyR)
+		{
+			ResetGame(map, land, GameOver, GameClear, FirstClick, Remaining, Time, StartTimer);
+		}
+
+		prevKeyR = keyR;
+
+
+		if ((FirstClick == false) && (GameOver == false) && (GameClear == false))
 		{
 			Time = (GetNowCount() - StartTimer) / 1000;
 		}
@@ -325,6 +373,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 		SetFontSize(30);
 		DrawFormatString(40, 15, GetColor(255, 255, 255), "%d", Remaining);
 		DrawFormatString(120, 15, GetColor(255, 255, 255), "%d秒", Time);
+
+		if (GameClear == true)
+		{
+			DrawFormatString(200, 15, GetColor(255, 255, 255), "GameClear");
+
+		}
 
 		ScreenFlip(); //裏画面データを表画面へ反映
 

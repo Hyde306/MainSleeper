@@ -357,7 +357,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 
 		if (keyR && !prevKeyR)
 		{
-			ResetGame(map, land, GameOver, GameClear, FirstClick, Remaining, Time, StartTimer);
+			ResetGame(map, GameOver, GameClear, FirstClick, Remaining, Time, StartTimer);
 		}
 
 		prevKeyR = keyR;
@@ -379,7 +379,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 			DrawFormatString(200, 15, GetColor(255, 255, 255), "GameClear");
 
 		}
-
+		if (GameOver == true)
+		{
+			DrawFormatString(200, 15, GetColor(255, 0, 0), "GameOver");
+		}
 		ScreenFlip(); //裏画面データを表画面へ反映
 
 		//毎ループ呼び出す。エラーになった場合breakする
